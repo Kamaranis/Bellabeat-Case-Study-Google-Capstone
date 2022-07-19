@@ -1,4 +1,4 @@
-# Fitbit-user-s-insights
+# Fitbit-user-s-insights for guided decisions
 This work is a study case part of the eighth course ["Google Data Analytics Capstone"](https://www.coursera.org/learn/google-data-analytics-capstone) of the ["Google Data Analyst"](https://www.coursera.org/professional-certificates/google-data-analytics) program. 
 
 Although it's no the first time that I had perform a data analysis, both at the academic and professional level, it's the first time following the methodology proposed in the study program, by serving the R programming language and the database query language (SQL).
