@@ -1,0 +1,554 @@
+---
+title: "Fitbit user's insights for guided decisions"
+author: "Antonio Barrera Mora"
+date: "2022-07-13"
+output:
+  html_document:
+    toc: yes
+  word_document:
+    toc: yes
+  pdf_document: default
+---
+# Fitbit users insights for guided decisions
+![Bellebeat main website corporative image](http://syw.under.jp/img/bbeat.jpg)
+
+# 0. Introduction
+This work is a study case part of the eighth course ["Google Data Analytics Capstone"](https://www.coursera.org/learn/google-data-analytics-capstone) of the ["Google Data Analyst"](https://www.coursera.org/professional-certificates/google-data-analytics) program. 
+
+Although it's no the first time that I had perform a data analysis, both at the academic and professional level, it's the first time following the methodology proposed in the study program, by serving the R programming language and the database query language (SQL).
+
+Under normal circumstances, with the data we had from the start, _this work would not have been possible_, but I had priories on putting the skills learned into practice and carrying out this case study in a relatively short period of time, less than a week.
+
+## 1. Ask Phase.
+[Bellabeat](https://bellabeat.com/) is a  successful, small, high-tech company of health products for women. The heads  believe that analyzing competence device data could help unlock growth chances.
+We should find insights in the data about the user's behavior and make suggestions.
+
+### 1.1. Business tasks
+Due to find new opportunities to grow business, we will analyze competence smart device usage data by gain insights into the uses. 
+Do apply these insights into one Bellabeat product and make recommendations.
+
+### 1.2. Key Questions
+1. What are some trends in smart device usage? 
+2. How could these trends apply to Bellabeat customers? 
+3. How could these trends help inﬂuence Bellabeat marketing strategy? 
+### 1.3. Stakeholders
+- __Urška Sršen:__ Bellabeat’s co-founder and Chief Creative Officer, with a marked background as an artist, aimed to develop beautifully designed technology. 
+- __Sando Mur:__ Mathematician and Bellabeat’s co-founder.
+- __Bellabeat marketing analytics team.__
+
+## 2. Preparation
+1. The dataset from which we are recommended to start working is public. It refers to a [set of data](https://www.kaggle.com/arashnic/fitbit) on consumption habits carried out through "Amazon Mechanical Turk" between 10/4/2016 and 12/05/2016, where the respondents (30 chosen) agreed to share the data (biometrics, minute-level output for physical activity, heart rate, and sleep monitoring) of theirs wearable devices for prospective study purposes.
+
+2. The information is stored in long format, although some specific tables are arranged in wide format. Especially, the most important tables, those that collect the information grouped by larger time intervals (case of "dailyActivity_merged") are configured in long format in relation to the date. 
+
+3. __The data does not meet the ROCC parameters.__
+The information is not reliable, since they do not specify more parameters than user ID numbers, we do not know if the information contains some kind of bias. For example, we do not know the gender of the user, if this survey has been carried out only by men.
+
+What is the point of applying the discoveries made here to a smart device designed for women?
+Likewise, we do not know ethnicity, nationality and most importantly, the age of the respondents.
+
+About the data of dataset creation, we should say __the data set isn't current__, it dates from 2016, six years old. We can say that, when talking about technology, __six years is the prehistory__.
+
+Finally and none the less, the information isn't original, the data set has been retouched to be published on the ["Kaggle"](https://www.kaggle.com/) platform.
+
+For all these reasons, __we cannot consider the information reliable at all__.
+
+4. __About Data integrity__, the datasets are in .csv format, meeting the integrity requirements with a fair level of confidence. Not for less, the datasets has been obtained from a platform whose members are passionate about data science.
+However, we confirmed the integrity analyzing the data set using some R programming language functions.
+
+5. Although the data is clearly compromised, __we can still draw some conclusions that can help us meet our goals__.
+
+6. In normal circumstances, a meeting with the stakeholders would have to be held. It would be necessary for them to agree to carry out their own survey and to provide data and primary information, that is, that is in the possession of the company. 
+
+Also, if it did not exceed the scope and requirements of this work, I would propose incorporating other open data, such as this Apple dataset:[Apple Watch and Fitbit data](https://www.kaggle.com/datasets/aleespinosa/apple-watch-and-fitbit-data),
+a much more complete and in tune with the ROCCC parameters.
+
+
+### 2.1. Loading Datasets
+```{r Loading Datasets, eval=TRUE, include=TRUE}
+fb_dailyAct <- read.csv("fb_data/dailyActivity_merged.csv")
+fb_dailyCal <- read.csv("fb_data/dailyCalories_merged.csv")
+fb_dailyInt <- read.csv("fb_data/dailyIntensities_merged.csv")
+fb_dailySteps <- read.csv("fb_data/dailySteps_merged.csv")
+fb_heartrate_sec <- read.csv("fb_data/heartrate_seconds_merged.csv")
+fb_hourlyCal <- read.csv("fb_data/hourlyCalories_merged.csv")
+fb_hourlyInt <- read.csv("fb_data/hourlyIntensities_merged.csv")
+fb_hourlySteps <- read.csv("fb_data/hourlySteps_merged.csv")
+fb_minuteCaloriesNarrow <- read.csv("fb_data/minuteCaloriesNarrow_merged.csv")
+fb_minuteCaloriesWide <- read.csv("fb_data/minuteCaloriesWide_merged.csv")
+fb_minuteIntensitiesNarrow <- read.csv("fb_data/minuteIntensitiesNarrow_merged.csv")
+fb_minuteIntensitiesWide <- read.csv("fb_data/minuteIntensitiesWide_merged.csv")
+fb_minuteSleep <- read.csv("fb_data/minuteSleep_merged.csv")
+fb_minuteStepsNarrow <- read.csv("fb_data/minuteStepsNarrow_merged.csv")
+fb_minuteStepsWide <- read.csv("fb_data/minuteStepsWide_merged.csv")
+fb_sleepDay <- read.csv("fb_data/sleepDay_merged.csv")
+fb_weightLogInfo <- read.csv("fb_data/weightLogInfo_merged.csv")
+fb_minuteMETsNarrow <- read.csv("fb_data/weightLogInfo_merged.csv")
+```
+
+
+### 2.2. Conecting to a SQL Dataframe
+Since the table frame with the heart rate is relevant to the analysis, and since its size is considerable, we decided to work with this data from Bigquery, combining the use of R and SQL language, while implementing some visualizations from Tableau:
+```{r ODBC connection, echo=TRUE}
+library(DBI)
+con <- dbConnect(odbc::odbc(), "Bellabeat", timeout = 10)
+```
+We will need to load an additional library:
+```{r}
+library(RMySQL)
+```
+Loading the data set "heartrate_seconds_merged.csv in the Rstudio environment from bigQuery environment:
+```{r eval=TRUE, include=TRUE}
+fb_heartrate_sec <- dbReadTable(con, "fb_heartrate_sec")
+```
+As a result, we obtain this table:
+```{r}
+head(fb_heartrate_sec)
+```
+Finally, we had all the packages we need to be able to work with R in combination with datasets hosted in Bigquery and to use SQL.
+
+
+### 2.3. Loading Libraries
+Loading the R libraries nedeed in our Rstudio envionment:
+
+```{r Loading libraries, echo=TRUE}
+library("rmarkdown")
+library("tidyr")
+library("tibble")
+library("ggplot2")
+library("skimr")
+library("tibble")
+library("janitor")
+library("kableExtra")
+library("dplyr")
+library("tidyverse")
+```
+
+
+## 3. Process
+
+### 3.1. Viewing datasets
+As a summary of the visualization and complete study of all the data sets, we show the most relevant results of the tables that group the data in a wide interval (daily activity) as a sample.
+```{r Headers, echo=TRUE}
+head(fb_dailyAct)
+```
+```{r resume, echo=TRUE}
+skim_without_charts("fb_dailyAct")
+```
+```{r}
+summarise(fb_dailyAct)
+```
+
+
+### 3.2. Datasets elimination
+We decided to eliminate the data sets that are structured in small time intervals (minutes) and because they have redundant data compared to datasets mad with broad time periods (Daily Grouped Data).
+We maintain, therefore, the "Dailyactivity, Sleepday and Weightloginfo" tables, which we will group in a single table (fb_Final_daily).
+
+We also maintain the "Heartrate_Seconds" table, for being relevant to research, whose "Heart Rate" variable we will convert to minutes and from which we will create an additional variable with the average
+
+### 3.3. Adjusting and cleaning variables in datasets
+```{r eval=FALSE, include=TRUE}
+#Hourly Intensity
+fb_hourlyInt$ActivityHour=as.POSIXct(fb_hourlyInt$ActivityHour, format="%m/%d/%Y %I:%M:%S %p", tz=Sys.timezone())
+
+#New time variable
+fb_hourlyInt$time <- format(fb_hourlyInt$ActivityHour, format = "%H:%M:%S")
+
+#New date variable
+fb_hourlyInt$date <- format(fb_hourlyInt$ActivityHour, format = "%m/%d/%Y")
+
+#Erasing duplicates
+fb_hourlyInt$ActivityHour <- NULL
+
+#backup
+write.csv(fb_hourlyInt, file= "fb_data/hourlyIntensities_merged2.csv")
+
+#Hourly Calories format fixing
+fb_hourlyCal$ActivityHour=as.POSIXct(fb_hourlyCal$ActivityHour, format="%m/%d/%Y %I:%M:%S %p", tz=Sys.timezone())
+fb_hourlyCal$time <- format(fb_hourlyCal$ActivityHour, format = "%H:%M:%S")
+fb_hourlyCal$date <- format(fb_hourlyCal$ActivityHour, format = "%m/%d/%Y")
+fb_hourlyCal$ActivityHour <- NULL
+write.csv(fb_hourlyCal, file= "fb_data/hourlyCalories_merged2.csv")
+
+#Fixing date format in fb_dailyAct
+fb_dailyAct$ActivityDate=as.POSIXct(fb_dailyAct$ActivityDate, format="%m/%d/%Y", tz=Sys.timezone())
+fb_dailyAct$date <- format(fb_dailyAct$ActivityDate, format = "%m/%d/%Y")
+fb_dailyAct$ActivityDate <- NULL
+write.csv(fb_dailyAct, file= "fb_data/dailyActivity_merged2.csv")
+
+#Fixing date format data in fb_sleepDay
+fb_sleepDay$SleepDay=as.POSIXct(fb_sleepDay$SleepDay, format="%m/%d/%Y %I:%M:%S %p", tz=Sys.timezone())
+fb_sleepDay$date <- format(fb_sleepDay$SleepDay, format = "%m/%d/%Y")
+fb_sleepDay$SleepDay <- NULL
+write.csv(fb_sleepDay, file= "fb_data/sleepDay_merged2.csv")
+
+#5a. Fixing date format fb_heartrate_sec
+fb_heartrate_sec$Time=as.POSIXct(fb_heartrate_sec$Time, format="%m/%d/%Y %I:%M:%S %p", tz=Sys.timezone())
+fb_heartrate_sec$time <- format(fb_heartrate_sec$Time, format = "%H:%M:%S")
+fb_heartrate_sec$date <- format(fb_heartrate_sec$Time, format = "%m/%d/%y")
+fb_heartrate_sec$Time <- NULL
+write.csv(fb_heartrate_sec, file= "fb_data/heartrate_seconds_merged2.csv")
+
+#Fixing date format in fb_hourlySteps
+fb_hourlySteps$ActivityHour=as.POSIXct(fb_hourlySteps$ActivityHour, format="%m/%d/%Y %I:%M:%S %p", tz=Sys.timezone())
+fb_hourlySteps$time <- format(fb_hourlySteps$ActivityHour, format = "%H:%M:%S")
+fb_hourlySteps$date <- format(fb_hourlySteps$ActivityHour, format = "%m/%d/%Y")
+fb_hourlySteps$ActivityHour <- NULL
+write.csv(fb_hourlySteps, file= "fb_data/hourlySteps_merged2.csv")
+
+#Fixing date format in fb_minuteCaloriesNarrow
+fb_minuteCaloriesNarrow$ActivityMinute=as.POSIXct(fb_minuteCaloriesNarrow$ActivityMinute, format="%m/%d/%Y %I:%M:%S %p", tz=Sys.timezone())
+fb_minuteCaloriesNarrow$time <- format(fb_minuteCaloriesNarrow$ActivityMinute, format = "%H:%M:%S")
+fb_minuteCaloriesNarrow$date <- format(fb_minuteCaloriesNarrow$ActivityMinute, format = "%m/%d/%y")
+fb_minuteCaloriesNarrow$ActivityMinute <- NULL
+write.csv(fb_minuteCaloriesNarrow, file= "fb_data/minuteCaloriesNarrow_merged2.csv")
+
+#Fixing date format in fb_minuteCaloriesWide
+fb_minuteCaloriesWide$ActivityHour=as.POSIXct(fb_minuteCaloriesWide$ActivityHour, format="%m/%d/%Y %I:%M:%S %p", tz=Sys.timezone())
+fb_minuteCaloriesWide$time <- format(fb_minuteCaloriesWide$ActivityHour, format = "%H:%M:%S")
+fb_minuteCaloriesWide$date <- format(fb_minuteCaloriesWide$ActivityHour, format = "%m/%d/%y")
+fb_minuteCaloriesWide$ActivityHour <- NULL
+write.csv(fb_minuteCaloriesWide, file= "fb_data/minuteCaloriesWide_merged2.csv")
+
+#Fixing date format fb_minuteIntensitiesNarrow
+fb_minuteIntensitiesNarrow$ActivityMinute=as.POSIXct(fb_minuteIntensitiesNarrow$ActivityMinute, format="%m/%d/%Y %I:%M:%S %p", tz=Sys.timezone())
+fb_minuteIntensitiesNarrow$time <- format(fb_minuteIntensitiesNarrow$ActivityMinute, format = "%H:%M:%S")
+fb_minuteIntensitiesNarrow$date <- format(fb_minuteIntensitiesNarrow$ActivityMinute, format = "%m/%d/%y")
+fb_minuteIntensitiesNarrow$ActivityMinute <- NULL
+write.csv(fb_minuteIntensitiesNarrow, file= "fb_data/minuteIntensitiesNarrow_merged2.csv")
+
+#Fixing date format in fb_minuteIntensitiesWide
+fb_minuteIntensitiesWide$ActivityHour=as.POSIXct(fb_minuteIntensitiesWide$ActivityHour, format="%m/%d/%Y %I:%M:%S %p", tz=Sys.timezone())
+fb_minuteIntensitiesWide$time <- format(fb_minuteIntensitiesWide$ActivityHour, format = "%H:%M:%S")
+fb_minuteIntensitiesWide$date <- format(fb_minuteIntensitiesWide$ActivityHour, format = "%m/%d/%y")
+fb_minuteIntensitiesWide$ActivityHour <- NULL
+write.csv(fb_minuteIntensitiesWide, file= "fb_data/minuteIntensitiesWide_merged2.csv")
+
+
+#Fixing date format in fb_minuteSleep
+fb_minuteSleep$date=as.POSIXct(fb_minuteSleep$date, format="%m/%d/%Y %I:%M:%S %p", tz=Sys.timezone())
+fb_minuteSleep$time <- format(fb_minuteSleep$date, format = "%H:%M:%S")
+fb_minuteSleep$datev_2 <- format(fb_minuteSleep$date, format = "%m/%d/%Y")
+fb_minuteSleep$date <- NULL
+write.csv(fb_minuteSleep, file= "fb_data/minuteSleep_merged2.csv")
+
+
+#Fixing date format in fb_minuteStepsNarrow
+fb_minuteStepsNarrow$ActivityMinute=as.POSIXct(fb_minuteStepsNarrow$ActivityMinute, format="%m/%d/%Y %I:%M:%S %p", tz=Sys.timezone())
+fb_minuteStepsNarrow$time <- format(fb_minuteStepsNarrow$ActivityMinute, format = "%H:%M:%S")
+fb_minuteStepsNarrow$date <- format(fb_minuteStepsNarrow$ActivityMinute, format = "%m/%d/%y")
+fb_minuteStepsNarrow$ActivityMinute <- NULL
+write.csv(fb_minuteStepsNarrow, file= "fb_data/minuteStepsNarrow_merged2.csv")
+
+
+#Fixing date format in fb_minuteStepsWide
+fb_minuteStepsWide$ActivityHour=as.POSIXct(fb_minuteStepsWide$ActivityHour, format="%m/%d/%Y %I:%M:%S %p", tz=Sys.timezone())
+fb_minuteStepsWide$time <- format(fb_minuteStepsWide$ActivityHour, format = "%H:%M:%S")
+fb_minuteStepsWide$date <- format(fb_minuteStepsWide$ActivityHour, format = "%m/%d/%y")
+fb_minuteStepsWide$ActivityHour <- NULL
+write.csv(fb_minuteStepsWide, file= "fb_data/minuteStepsWide_merged2.csv")
+
+#Fixing date format in fb_weightLogInfo
+fb_weightLogInfo$Date=as.POSIXct(fb_weightLogInfo$Date, format="%m/%d/%Y %I:%M:%S %p", tz=Sys.timezone())
+fb_weightLogInfo$time <- format(fb_weightLogInfo$Date, format = "%H:%M:%S")
+fb_weightLogInfo$date <- format(fb_weightLogInfo$Date, format = "%m/%d/%Y")
+fb_weightLogInfo$Date <- NULL
+
+#Factorizing 'IsManualReport' and excluding unnecessary in 'fb_weightLogInfo
+fb_weightLogInfo <- fb_weightLogInfo %>% 
+  select(-LogId) %>% 
+  mutate(IsManualReport = as.factor(IsManualReport))
+write.csv(fb_weightLogInfo, file= "fb_data/WeightLogInfo_merged2.csv")
+
+#Fixing date format in fb_minuteMETsNarrow
+fb_minuteMETsNarrow$Date=as.POSIXct(fb_minuteMETsNarrow$Date, format="%m/%d/%Y %I:%M:%S %p", tz=Sys.timezone())
+fb_minuteMETsNarrow$time <- format(fb_minuteMETsNarrow$Date, format = "%H:%M:%S")
+fb_minuteMETsNarrow$date <- format(fb_minuteMETsNarrow$Date, format = "%m/%d/%y")
+fb_minuteMETsNarrow$Date <- NULL
+write.csv(fb_minuteMETsNarrow, file= "fb_data/minuteMETsNarrow_merged2.csv")
+
+#fb_dailyCal backup
+write.csv(fb_dailyCal, file= "fb_data/dailyCalories_merged2.csv")
+
+#fb_dailyInt backup
+write.csv(fb_dailyInt, file= "fb_data/dailyIntensities_merged2.csv")
+
+#fb_dailySteps backup
+write.csv(fb_dailySteps, file= "fb_data/dailySteps_merged2.csv")
+
+#Renaming variables for uniformity
+fb_dailyCal <- fb_dailyCal %>% 
+  mutate(date = ActivityDay) %>% 
+  select(-ActivityDay) 
+  
+fb_dailyInt <- fb_dailyInt %>% 
+  mutate(date = ActivityDay) %>% 
+  select(-ActivityDay)
+
+fb_dailySteps <- fb_dailySteps %>% 
+  mutate(date = ActivityDay) %>% 
+  select(-ActivityDay) 
+```
+
+
+### 3.4. Merging Datsets in R
+We will combine 3 Datasets ("fb_dailyAct", "fb_sleepDay", "fb_weightLogInfo"), after having cleaned and reviewed each one of them and ensured that they contain variables of the same type and name, to ensure their compatibility and that can merge without problems:
+```{r eval=FALSE, include=TRUE}
+fb_final_daily <- merge(merge(fb_dailyAct, fb_sleepDay, by= c('Id','date'), all = TRUE ), fb_weightLogInfo, by= c('Id','date'), all = TRUE)
+```
+Thus, we have the "fb_final_daily" dataset from which we can work more comfortably and adequately, which we will create a backup of:
+```{r eval=FALSE, include=TRUE}
+write.csv(fb_final_daily, file= "fb_data/fb_final_daily.csv")
+```
+```{r echo=TRUE}
+fb_final_daily <- read.csv("fb_data/fb_final_daily.csv")
+```
+
+
+### 3.5. Working with Heart-Rate table in SQL
+As we said before, due to size issues, we need to import the "heartrate_seconds_merged.csv" table into BigQuery and next, add it to the Rstudio workbench:
+```{r Dataframe from BigQuery, eval=FALSE, include=TRUE}
+fb_heartrate_sec <- dbReadTable(con, "fb_heartrate_sec")
+```
+obtaining the next table:
+
+![Heart Rate in BigQuery](http://syw.under.jp/img/3.4.jpg)
+                       
+  *Figure 1:Heart-rate table in BigQuery*
+
+                                    
+#### 3.5.1. Cleaning the "fb_heartrate_sec"
+We need to obtain the average of the heartbeats per hour and clean the variables, so we proceed through SQL to perform these tasks
+```
+-- !preview conn=con
+SELECT  
+date AS ymd,
+Id,
+ROUND(AVG(Value),2)  AS Heartrate 
+
+FROM `bellabeat-356005.Bellabeat.fb_heartrate_sec` 
+
+GROUP BY
+date, Id
+
+ORDER BY
+Id
+```
+And saving a new bigQuery table "c_fb_heartrateAvg", then loading in the RStudio environment:
+```{r DF from BigQuery, echo=TRUE}
+fb_heartrateAvg <- dbReadTable(con, "c_fb_heartrateAvg")
+```
+And obtaining the next table:
+```{r echo=TRUE}
+head(fb_heartrateAvg)
+```
+
+### 3.6. Unified dataset check
+```{r Clean names, eval=FALSE, include=TRUE}
+        clean_names(fb_final_daily)
+```
+As a snapshot of the result process:
+![Clean names function snapshot image](http://syw.under.jp/img/3.5.jpg)
+                *<ins>Figure 2:</ins>"Clean_names" function summary* 
+
+```{r Glimpse, eval=TRUE, include=TRUE}
+
+glimpse(fb_heartrateAvg)
+```
+
+```{r Head, eval=TRUE, include=TRUE}
+head(fb_final_daily)
+```
+
+```{r skim without, eval=TRUE, include=TRUE}
+skim_without_charts(fb_final_daily)
+```
+
+#### 3.6.1 Variable cleaning in the final tables
+```{r eval=FALSE, include=TRUE}
+fb_final_daily$X <- NULL %>% 
+  fb_final_daily$LoggedActivitiesDistance <- NULL %>% 
+  fb_final_daily$TrackerDistance <- NULL %>% 
+  fb_final_daily$IsManualReport <- NULL %>% 
+  fb_final_daily$Date <- NULL %>% 
+  fb_final_daily$WeightPounds <- NULL %>% 
+
+```
+
+
+## 4. Analyze
+We could start this section, summarizing the state of affairs, which would happen by saying that we have obtained as a product, two tables with which we are going to proceed with the analysis:
+-"fb_final_daily"
+-"fb_heartrateAvg"
+
+Before starting the analysis is needed to mention that this section contains insights and ideas from the [MIGUEL FZZZ](https://www.kaggle.com/code/miguelfzzz/bellabeat-data-analysis-discovering-trends/report)design.
+
+First, we need to set a theme for the plots:
+```{r Custom_Theme, echo=TRUE}
+custom_theme_original <- function() {
+  theme(
+    panel.border = element_rect(colour = "black", 
+                                fill = NA, 
+                                linetype = 1),
+    panel.background = element_rect(fill = "white", 
+                                    color = 'grey50'),
+    panel.grid.minor.y = element_blank(),
+    axis.text = element_text(colour = "blue", 
+                             face = "italic", 
+                             family = "Arial"),
+    axis.title = element_text(colour = "gray", 
+                              family = "Arial"),
+    axis.ticks = element_line(colour = "blue"),
+    plot.title = element_text(size=20, 
+                              hjust = 0.5, 
+                              family = "Arial"),
+    plot.subtitle=element_text(size=13, 
+                               hjust = 0.5),
+    plot.caption = element_text(colour = "brown", 
+                                face = "Arial", 
+                                family = "Arial")
+  )
+}
+```
+
+
+### 4.1 Physiological activity:Heart-rate as a predictor of health problems
+```{r eval=TRUE, include=TRUE}
+fb_heartrateAvg %>%
+  group_by(Id) %>% 
+  ggplot(aes(x=ymd, y=Heartrate,  color=Heartrate)) +
+  geom_point(alpha=0.3, position = position_jitter())+
+  geom_smooth()+
+  labs(title = "Daily heartrate average", subtitle= "Daily distribution with mean scores", x= "Date", y="Heart Rate", caption = "Plot 1")
+  
+```
+
+You can display an interactive plot by clicking __[here]__(https://public.tableau.com/app/profile/anbamo/viz/BellabeatInsightsfromFitbitHeartRate-Date/Physiological)
+
+
+### 4.2 Physical activity 1: Calories by activity (total distance)
+```{r eval=TRUE, include=TRUE}
+fb_final_daily %>% 
+ group_by(TotalDistance, Calories) %>% 
+  ggplot(aes(x = TotalSteps, y = Calories, color = Calories)) +
+  geom_point(alpha=0.3, position = position_jitter()) +
+  geom_smooth() + 
+  theme(legend.position = c(.8, .3),
+        legend.spacing.y = unit(1, "mm"), 
+        panel.border = element_rect(colour = "black", fill=NA),
+        legend.background = element_blank(),
+        legend.box.background = element_rect(colour = "black")) +
+  labs(title = 'Calories burned by distance',
+       y = 'Calories',
+       x = 'Total Steps',
+       caption = 'Plot 2')
+```
+__Pearson correlation index__
+```{r eval=TRUE, include=TRUE}
+cor.test(fb_final_daily$TotalDistance, fb_final_daily$Calories, method = 'pearson', conf.level = 0.95)
+```
+
+
+You can display an interactive plot by clicking
+[here](https://public.tableau.com/app/profile/anbamo/viz/BellabeatInsightsfromFitbitcaloriesvsDistance/caloriesvsdistance)
+
+
+
+### 4.3 Physical Activity 2: Calories by activity (total distance) 
+
+![Plot 3: Daily Activity](http://syw.under.jp/img/4.3.jpg)
+    
+
+### 4.4 Intensity of exercise activity 
+
+![Plot 4: Excercise Intensity](http://syw.under.jp/img/exerciseInt.jpg)
+                          
+You can display an interactive plot by clicking [here](https://public.tableau.com/app/profile/anbamo/viz/BellabeatInsightsfromFitbitExerciseintensity1/Exerciseintensity1)
+                                                                    
+
+### 4.5 Sleep distribution
+```{r eval=TRUE, include=TRUE}
+fb_final_daily %>% 
+  select(TotalMinutesAsleep) %>% 
+  drop_na() %>% 
+  mutate(sleep_quality = ifelse(TotalMinutesAsleep <= 420, 'Less than 7h',
+                         ifelse(TotalMinutesAsleep <= 540, '7h to 9h', 
+                         'More than 9h'))) %>%
+  mutate(sleep_quality = factor(sleep_quality, 
+                          levels = c('Less than 7h','7h to 9h',
+                                     'More than 9h'))) %>% 
+  ggplot(aes(x = TotalMinutesAsleep, fill = sleep_quality)) +
+  geom_histogram(position = 'dodge', bins = 30) +
+  scale_fill_manual(values=c("tan1", "#66CC99", "lightcoral")) +
+  theme(legend.position = c(.80, .80),
+        legend.title = element_blank(),
+        legend.spacing.y = unit(0, "mm"), 
+        panel.border = element_rect(colour = "black", fill=NA),
+        legend.background = element_blank(),
+        legend.box.background = element_rect(colour = "black")) +
+  labs(
+    title = "Sleep distribution",
+    x = "Time slept (minutes)",
+    y = "Count",
+    caption = 'Plot 5'
+  )
+```
+
+
+### 4.6 Sleep vs distance covered
+```{r eval=TRUE, include=TRUE}
+fb_final_daily%>% 
+  select(Id, TotalDistance, TotalMinutesAsleep) %>% 
+  group_by(Id) %>% 
+  summarise_all(list(~mean(., na.rm=TRUE))) %>% 
+  drop_na() %>% 
+  mutate(Id = factor(Id)) %>% 
+  ggplot() +
+  geom_bar(aes(x = Id, y = TotalDistance), stat = "identity", fill = 'lightblue', alpha = 0.7) +
+  geom_point(aes(x = Id, y = TotalMinutesAsleep/60), color = 'gold4') +
+  geom_segment(aes(x = Id, xend = Id, y = 0, yend = TotalMinutesAsleep/60), color = 'gold4' ,group = 1) +
+  scale_y_continuous(limits=c(0, 12), name = "Total Distance", 
+    sec.axis = sec_axis(~.*60, name = "Sleep in minutes")) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  theme(axis.title.y.right = element_text(color = "gold4"), 
+        axis.ticks.y.right = element_line(color = "gold4"),
+        axis.text.y.right = element_text(color = "gold4")) +
+  labs(
+    title = "Distance vs sleep",
+    x = "Users",
+    caption = 'Plot 6'
+  )
+```
+
+## 5. Share
+
+### 5.1. Weight key takeaways
+
+#### 5.1.1 Weight as a key valor
+1. Weight is one of the most important biometric measurements.
+- As can be seen in [this interactive                 graph](https://public.tableau.com/app/profile/anbamo/viz/BellabeatInsightsfromFitbitExerciseintensity2/Exerciseintensity2), weight is a good predictor of physical activity, __in this case, the correlation between higher weight and lower intensity of physical activity and exercises__.
+
+- In this [interactive graph](https://public.tableau.com/app/profile/anbamo/viz/BellabeatInsightsfromFitbitweightvsActivity/weightcalories), we can see easily that a higher weight is synonymous with shorter distances traveled.
+
+- That the few users who entered their real weight did so manually, as we can see in this snapshot:
+
+![Plot 5: Manual weight data introduction](http://syw.under.jp/img/5.1.jpg)
+
+#### 5.1.2 Weight issues recomendations for "Bellabeat membership"
+Weight is a recognized __medical risk factor for health__, but as we can deduce from the information analysed, we observe that it's a great predictor of physical activity. The subscription service should encourage the user to provide biometric data, but especially the weight, as it's vital for this subscription (pay) program to be really useful for our customers. 
+In the same way, the technology behind scenes in the __app will be improves__ for collect automatically the weight values. 
+Finally, a rewards program should also be implemented to encourage physical activity.
+
+### 5.2. Heart rate key takeways
+
+#### 5.2.1. Heart rate monitorization
+Abnormal cardiological activity and other health problems can be clearly reflected in the pulse with heart rate monitoring.
+
+The data records, in the format that was presented did not lend themselves to understanding whether too high a pulse rate corresponded to high physical activity. In many cases, we can see with a simple glance at the tables, which people with high weight had a much higher average heart rate.
+
+#### 5.2.2. Heart rate recomendations for "Bellabeat membership" and app
+Both the subscription service and the app should implement artificial intelligence to understand when a heart rate is normal based on the physical activity that is taking place. Also manage to keep a record of the anomalies and the times that a high pulse has been had without correspondence of a physical activity that justifies it.
+
+### 5.3. Ending with other considerations
+In the case of other variables such as sleep, the analysis reflects an apparently normal distribution of sleep (in terms of quantity) and also when correlating in terms of distances traveled, that is, the higher the level of rest, the more willingness to accumulate steps, or what is the same, more physical activity. 
+This is not surprising, since it's something that falls within common sense. But it would be important for our company to study the sleep patterns based on age and moment, like __women ovulation__ as a variable that can affect -among others-, the sleep quality.
