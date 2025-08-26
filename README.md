@@ -58,7 +58,7 @@ The project culminates in a set of strategic recommendations for Bellabeat, dire
 
 ## 👤 Author
 
-**[Tu Nombre]**
+**Antonio Barrera Mora**
 
-*   **LinkedIn:** [Tu Perfil de LinkedIn]
+*   **LinkedIn:** https://www.linkedin.com/in/anbamo/
 *   **GitHub:** @Kamaranis
