@@ -1,0 +1,62 @@
+### Sistemas Operativos ###
+# Linux
+*~
+*.swp
+.DS_Store
+Thumbs.db
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# macOS
+.DS_Store
+.localized
+.Spotlight-V100
+.Trashes
+
+### IDEs y Entornos de Desarrollo ###
+# JetBrains (IntelliJ, PyCharm, etc.)
+.idea/
+.vscode/
+.code-workspace
+*.iml
+*.iws
+*.ipr
+
+# Visual Studio Code
+.vscode/
+.code-workspace
+
+# Jupyter
+.ipynb_checkpoints/
+__pycache__/
+
+# Maven
+target/
+
+# Gradle
+.gradle/
+build/
+
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.venv/
+dist/
+build/
+*.egg-info/
+
+### Archivos de Logs y Temporales ###
+*.log
+*.tmp
+*.temp
+*~
+*.bak
